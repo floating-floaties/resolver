@@ -7,7 +7,7 @@ edition = "2021"
 rust-version = "1.61.0"
 
 homepage = "https://github.com/floating-floaties/eval-utility/"
-keywords = ["expression", "evaluate", "evaluator", "expr", "template", "eval", "condition", "parse"]
+keywords = ["expression", "evaluator", "condition", "parse"]
 repository = "https://github.com/floating-floaties/eval-utility/"
 readme = "README.md"
 license = "GPL-3.0-only"
