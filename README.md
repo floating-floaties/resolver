@@ -1,13 +1,22 @@
-eval
+resolver
 ====
 
-[![Project Status: Abandoned – Initial development has started, but there has not yet been a stable, usable release; the project has been abandoned and the author(s) do not intend on continuing development.](https://www.repostatus.org/badges/latest/abandoned.svg)](https://www.repostatus.org/#abandoned)
 
-[![docs](https://docs.rs/eval/badge.svg?version=0.4.3 "docs")](https://docs.rs/eval)
+Source
+---
 
-Eval is a powerful expression evaluator.
+> This work is a derivetive of this repository: https://github.com/fengcen/eval
+>
+> The aforementioned repository has been abandoned, hence the reason for this repository/crate.
+>
 
-[Document](https://docs.rs/eval)
+<!-- [![Project Status: Abandoned – Initial development has started, but there has not yet been a stable, usable release; the project has been abandoned and the author(s) do not intend on continuing development.](https://www.repostatus.org/badges/latest/abandoned.svg)](https://www.repostatus.org/#abandoned) -->
+
+<!-- [![docs](https://docs.rs/eval/badge.svg?version=0.4.3 "docs")](https://docs.rs/eval) -->
+
+<!-- Eval is a powerful expression evaluator. -->
+
+<!-- [Document](https://docs.rs/eval) -->
 --------------------------------
 
 Features
@@ -31,13 +40,13 @@ Add dependency to Cargo.toml
 
 ```toml
 [dependencies]
-eval = "^0.4"
+resolver = "^0.1"
 ```
 
 In your `main.rs` or `lib.rs`:
 
 ```rust
-extern crate eval;
+extern crate resolver;
 ```
 
 Examples
@@ -46,7 +55,7 @@ Examples
 You can do mathematical calculations with supported operators:
 
 ```rust
-use eval::{eval, to_value};
+use resolver::{eval, to_value};
 
 assert_eq!(eval("1 + 2 + 3"), Ok(to_value(6)));
 assert_eq!(eval("2 * 2 + 3"), Ok(to_value(7)));
@@ -57,7 +66,7 @@ assert_eq!(eval("2 / 2 + 3 / 3"), Ok(to_value(2.0)));
 You can eval with context:
 
 ```rust
-use eval::{Expr, to_value};
+use resolver::{Expr, to_value};
 
 assert_eq!(Expr::new("foo == bar")
                .value("foo", true)
@@ -69,7 +78,7 @@ assert_eq!(Expr::new("foo == bar")
 You can access data like javascript by using `.` and `[]`. `[]` supports expression.
 
 ```rust
-use eval::{Expr, to_value};
+use resolver::{Expr, to_value};
 use std::collections::HashMap;
 
 let mut object = HashMap::new();
@@ -84,7 +93,7 @@ assert_eq!(Expr::new("object.foos[1-1] == 'Hello'")
 You can eval with function:
 
 ```rust
-use eval::{Expr, to_value};
+use resolver::{Expr, to_value};
 
 assert_eq!(Expr::new("say_hello()")
                .function("say_hello", |_| Ok(to_value("Hello world!")))
@@ -95,7 +104,7 @@ assert_eq!(Expr::new("say_hello()")
 You can create an array with `array()`:
 
 ```rust
-use eval::{eval, to_value};
+use resolver::{eval, to_value};
 
 assert_eq!(eval("array(1, 2, 3, 4, 5)"), Ok(to_value(vec![1, 2, 3, 4, 5])));
 ```
@@ -103,7 +112,7 @@ assert_eq!(eval("array(1, 2, 3, 4, 5)"), Ok(to_value(vec![1, 2, 3, 4, 5])));
 You can create an integer array with `n..m`:
 
 ```rust
-use eval::{eval, to_value};
+use resolver::{eval, to_value};
 
 assert_eq!(eval("0..5"), Ok(to_value(vec![0, 1, 2, 3, 4])));
 ```
@@ -111,5 +120,6 @@ assert_eq!(eval("0..5"), Ok(to_value(vec![0, 1, 2, 3, 4])));
 License
 -------
 
-eval is primarily distributed under the terms of the MIT license.
+resolver is under the terms of the [GPL-3.0-only](LICENSE) license.
+
 See [LICENSE](LICENSE) for details.

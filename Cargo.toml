@@ -1,5 +1,5 @@
 [package]
-name = "evaluator"
+name = "resolver"
 description = "Expression evaluator"
 version = "0.1.0"
 
@@ -10,10 +10,10 @@ homepage = "https://github.com/floating-floaties/eval-utility/"
 keywords = ["expression", "evaluate", "evaluator", "expr", "template", "eval", "condition", "parse"]
 repository = "https://github.com/floating-floaties/eval-utility/"
 readme = "README.md"
-license = "MIT"
+license = "GPL-3.0-only"
 
 [lib]
-name = "eval"
+name = "resolver"
 path = "src/lib.rs"
 
 [dependencies]

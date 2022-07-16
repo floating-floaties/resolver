@@ -10,7 +10,7 @@
 //! You can do mathematical calculations with supported operators:
 //!
 //! ```
-//! use eval::{eval, to_value};
+//! use resolver::{eval, to_value};
 //!
 //! assert_eq!(eval("1 + 2 + 3"), Ok(to_value(6)));
 //! assert_eq!(eval("2 * 2 + 3"), Ok(to_value(7)));
@@ -21,7 +21,7 @@
 //! You can eval with context:
 //!
 //! ```
-//! use eval::{Expr, to_value};
+//! use resolver::{Expr, to_value};
 //!
 //! assert_eq!(Expr::new("foo == bar")
 //!                .value("foo", true)
@@ -33,7 +33,7 @@
 //! You can access data like javascript by using `.` and `[]`. `[]` supports expression.
 //!
 //! ```
-//! use eval::{Expr, to_value};
+//! use resolver::{Expr, to_value};
 //! use std::collections::HashMap;
 //!
 //! let mut object = HashMap::new();
@@ -48,7 +48,7 @@
 //! You can eval with function:
 //!
 //! ```
-//! use eval::{Expr, to_value};
+//! use resolver::{Expr, to_value};
 //!
 //! assert_eq!(Expr::new("say_hello()")
 //!                .function("say_hello", |_| Ok(to_value("Hello world!")))
@@ -59,7 +59,7 @@
 //! You can create an array with `array()`:
 //!
 //! ```
-//! use eval::{eval, to_value};
+//! use resolver::{eval, to_value};
 //!
 //! assert_eq!(eval("array(1, 2, 3, 4, 5)"), Ok(to_value(vec![1, 2, 3, 4, 5])));
 //! ```
@@ -67,7 +67,7 @@
 //! You can create an integer array with `n..m`:
 //!
 //! ```
-//! use eval::{eval, to_value};
+//! use resolver::{eval, to_value};
 //!
 //! assert_eq!(eval("0..5"), Ok(to_value(vec![0, 1, 2, 3, 4])));
 //! ```
@@ -607,7 +607,7 @@ mod tests {
 #[cfg(all(feature = "unstable", test))]
 mod benches {
     extern crate test;
-    use eval;
+    use resolver;
     use tree::Tree;
     use Expr;
 
