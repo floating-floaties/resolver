@@ -1,7 +1,7 @@
 
-use {Function, Functions, Value, to_value};
-use math::Math;
-use error::Error;
+use crate::{Function, Functions, Value, to_value};
+use crate::math::Math;
+use crate::error::Error;
 
 
 pub struct BuiltIn {}

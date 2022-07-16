@@ -1,7 +1,7 @@
 
-use operator::Operator;
-use error::Error;
-use Function;
+use crate::operator::Operator;
+use crate::error::Error;
+use crate::Function;
 
 
 #[derive(Debug, Clone, PartialEq)]

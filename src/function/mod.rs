@@ -1,7 +1,8 @@
 
 use std::fmt;
 use serde_json::Value;
-use error::Error;
+
+use crate::error::Error;
 
 
 /// Custom function

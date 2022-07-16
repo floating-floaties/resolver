@@ -142,13 +142,14 @@ type Compiled = Box<dyn Fn(&[Context], &Functions) -> Result<Value, Error>>;
 
 #[cfg(test)]
 mod tests {
-    use to_value;
-    use error::Error;
-    use Expr;
-    use tree::Tree;
-    use Value;
-    use eval;
     use std::collections::HashMap;
+    
+    use crate::to_value;
+    use crate::error::Error;
+    use crate::Expr;
+    use crate::tree::Tree;
+    use crate::Value;
+    use crate::eval;
 
     #[test]
     fn test_add() {
@@ -255,7 +256,7 @@ mod tests {
         object.insert("field3", "value3");
         assert_eq!(
             Expr::new("len(object)").value("object", object).exec(),
-            Ok(to_value(3))
+            Ok(to_value(3_i64))
         );
     }
 
@@ -512,9 +513,9 @@ mod tests {
     fn test_builtin_min() {
         assert_eq!(
             Expr::new("min(array)")
-                .value("array", vec![23, 34, 45, 2])
+                .value("array", vec![23_i32, 34_i32, 45_i32, 2_i32])
                 .exec(),
-            Ok(to_value(2))
+            Ok(to_value(2_i32))
         );
     }
 

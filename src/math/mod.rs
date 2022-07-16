@@ -1,7 +1,7 @@
 
 use serde_json::Value;
-use to_value;
-use error::Error;
+use crate::to_value;
+use crate::error::Error;
 
 pub trait Math {
     fn add(&self, value: &Value) -> Result<Value, Error>;

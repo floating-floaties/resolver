@@ -1,6 +1,7 @@
 
 use serde_json::Value;
-use operator::Operator;
+
+use crate::operator::Operator;
 
 
 quick_error! {
