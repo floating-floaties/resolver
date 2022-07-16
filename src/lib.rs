@@ -136,7 +136,7 @@ pub fn eval(expr: &str) -> Result<Value, Error> {
 }
 
 
-type Compiled = Box<Fn(&[Context], &Functions) -> Result<Value, Error>>;
+type Compiled = Box<dyn Fn(&[Context], &Functions) -> Result<Value, Error>>;
 
 
 

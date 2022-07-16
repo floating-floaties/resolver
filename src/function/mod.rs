@@ -11,7 +11,7 @@ pub struct Function {
     /// Minimum number of arguments.
     pub min_args: Option<usize>,
     /// Accept values and return a result which contains a value.
-    pub compiled: Box<Fn(Vec<Value>) -> Result<Value, Error> + Sync + Send>,
+    pub compiled: Box<dyn Fn(Vec<Value>) -> Result<Value, Error> + Sync + Send>,
 }
 
 impl Function {

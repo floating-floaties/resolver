@@ -15,9 +15,9 @@ name = "eval"
 path = "src/lib.rs"
 
 [dependencies]
-serde = ">= 0.9, < 2"
-serde_json = ">= 0.9, < 2"
-quick-error = "^1.1"
+serde = "1.0.139"
+serde_json = "1.0.82"
+quick-error = "2.0.1"
 
 [features]
 unstable = []
