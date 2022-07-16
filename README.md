@@ -5,7 +5,7 @@ resolver
 Source
 ---
 
-> This work is a derivetive of this repository: https://github.com/fengcen/eval
+> This work is a derivative of this repository: https://github.com/fengcen/eval
 >
 > The aforementioned repository has been abandoned, hence the reason for this repository/crate.
 >
