@@ -92,8 +92,8 @@
 //!
 #![recursion_limit="100"]
 #![deny(missing_docs)]
-#![cfg_attr(all(feature = "unstable", test), feature(test))]
 
+#[forbid(unsafe_code)]
 #[macro_use]
 extern crate quick_error;
 extern crate serde;
@@ -135,10 +135,7 @@ pub fn eval(expr: &str) -> Result<Value, Error> {
     Expr::new(expr).compile()?.exec()
 }
 
-
 type Compiled = Box<dyn Fn(&[Context], &Functions) -> Result<Value, Error>>;
-
-
 
 #[cfg(test)]
 mod tests {
