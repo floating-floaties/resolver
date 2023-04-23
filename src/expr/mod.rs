@@ -8,9 +8,10 @@ use serde::{
 
 use std::{fmt, cmp};
 
+use crate::function::{StaticFunction, ConstFunction};
 use crate::tree::Tree;
 use crate::error::Error;
-use crate::to_value;
+use crate::{to_value, ConstFunctions};
 use crate::{Function, Functions, Context, Contexts, Compiled, Value};
 
 /// Expression builder
@@ -18,6 +19,7 @@ pub struct Expr {
     expression: String,
     compiled: Option<Compiled>,
     functions: Functions,
+    const_functions: ConstFunctions,
     contexts: Contexts,
 }
 
@@ -28,16 +30,24 @@ impl Expr {
             expression: expr.into(),
             compiled: None,
             functions: Functions::new(),
+            const_functions: ConstFunctions::new(),
             contexts: create_empty_contexts(),
         }
     }
 
-    /// Set function.
+    /// Set function. This functions NOT be cloned. Have highest priority.
     pub fn function<T, F>(mut self, name: T, function: F) -> Expr
         where T: Into<String>,
               F: 'static + Fn(Vec<Value>) -> Result<Value, Error> + Sync + Send
     {
         self.functions.insert(name.into(), Function::new(function));
+        self
+    }
+
+    /// Set const function. This functions be cloned. Have lowest priority. 
+    pub fn const_function<T>(mut self, name: T, function: StaticFunction)->Expr
+    where T: Into<String>{
+        self.const_functions.insert(name.into(), ConstFunction::new(function));
         self
     }
 
@@ -61,9 +71,9 @@ impl Expr {
     /// Execute the expression.
     pub fn exec(&self) -> Result<Value, Error> {
         if self.compiled.is_none() {
-            Tree::new(self.expression.clone()).compile()?(&self.contexts, &self.functions)
+            Tree::new(self.expression.clone()).compile()?(&self.contexts, &self.functions, &self.const_functions)
         } else {
-            self.compiled.as_ref().unwrap()(&self.contexts, &self.functions)
+            self.compiled.as_ref().unwrap()(&self.contexts, &self.functions, &self.const_functions)
         }
     }
 
@@ -85,6 +95,7 @@ impl Clone for Expr {
             },
             contexts: self.contexts.clone(),
             functions: Functions::new(),
+            const_functions: self.const_functions.clone()
         }
     }
 }
@@ -126,15 +137,18 @@ pub struct ExecOptions<'a> {
     expr: &'a Expr,
     contexts: Option<&'a [Context]>,
     functions: Option<&'a Functions>,
+    const_function: &'a ConstFunctions
 }
 
 impl<'a> ExecOptions<'a> {
     /// Create an option.
     pub fn new(expr: &'a Expr) -> ExecOptions<'a> {
+        let cf = &expr.const_functions;
         ExecOptions {
-            expr: expr,
+            expr,
             contexts: None,
             functions: None,
+            const_function: cf
         }
     }
 
@@ -168,17 +182,16 @@ impl<'a> ExecOptions<'a> {
         };
 
         let compiled = self.expr.get_compiled();
-        if compiled.is_none() {
-            Tree::new(self.expr.expression.clone()).compile()?(contexts, functions)
+        if let Some (c) = compiled {
+            (c)(contexts, functions, self.const_function)
         } else {
-            compiled.unwrap()(contexts, functions)
+            Tree::new(self.expr.expression.clone()).compile()?(contexts, functions, self.const_function)
         }
     }
 }
 
 
 fn create_empty_contexts() -> Contexts {
-    let mut contexts = Contexts::new();
-    contexts.push(Context::new());
+    let contexts = vec![Context::new()];
     contexts
 }
