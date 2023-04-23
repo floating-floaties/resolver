@@ -115,7 +115,7 @@ pub use error::Error;
 pub use function::Function;
 pub use expr::Expr;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc, cell::RefCell};
 use serde_json::to_value as json_to_value;
 use serde::Serialize;
 
@@ -138,7 +138,7 @@ pub fn eval(expr: &str) -> Result<Value, Error> {
     Expr::new(expr).compile()?.exec()
 }
 
-type Compiled = Box<dyn Fn(&[Context], &Functions, &ConstFunctions) -> Result<Value, Error>>;
+type Compiled = Box<dyn Fn(&[Context], &Functions, Rc<RefCell<ConstFunctions>>) -> Result<Value, Error>>;
 
 #[cfg(test)]
 mod tests {
@@ -638,8 +638,8 @@ mod tests {
             };
             Ok((base + 2).into())
         }
-        let e = Expr::new("add2(pow(2, 2))").const_function("pow", pow).const_function("add2",add2);
-        assert_eq!(e.compile().unwrap().clone().exec(), Ok(to_value(6)));
+        let e = Expr::new("add2(pow(2, 2) + pow(2, 2))").const_function("pow", pow).const_function("add2",add2);
+        assert_eq!(e.compile().unwrap().clone().exec(), Ok(to_value(4 + 4 + 2)));
     }
 }
 

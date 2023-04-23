@@ -6,6 +6,9 @@ use serde::{
     Deserializer,
 };
 
+use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::{fmt, cmp};
 
 use crate::function::{StaticFunction, ConstFunction};
@@ -19,7 +22,7 @@ pub struct Expr {
     expression: String,
     compiled: Option<Compiled>,
     functions: Functions,
-    const_functions: ConstFunctions,
+    const_functions: Rc<RefCell<ConstFunctions>>,
     contexts: Contexts,
 }
 
@@ -30,7 +33,7 @@ impl Expr {
             expression: expr.into(),
             compiled: None,
             functions: Functions::new(),
-            const_functions: ConstFunctions::new(),
+            const_functions: Rc::from(RefCell::from(ConstFunctions::new())),
             contexts: create_empty_contexts(),
         }
     }
@@ -47,7 +50,7 @@ impl Expr {
     /// Set const function. This functions be cloned. Have lowest priority. 
     pub fn const_function<T>(mut self, name: T, function: StaticFunction)->Expr
     where T: Into<String>{
-        self.const_functions.insert(name.into(), ConstFunction::new(function));
+        self.const_functions.borrow_mut().insert(name.into(), ConstFunction::new(function));
         self
     }
 
@@ -69,11 +72,11 @@ impl Expr {
     }
 
     /// Execute the expression.
-    pub fn exec(&self) -> Result<Value, Error> {
+    pub fn exec(&mut self) -> Result<Value, Error> {
         if self.compiled.is_none() {
-            Tree::new(self.expression.clone()).compile()?(&self.contexts, &self.functions, &self.const_functions)
+            Tree::new(self.expression.clone()).compile()?(&self.contexts, &self.functions, Rc::clone(&self.const_functions))
         } else {
-            self.compiled.as_ref().unwrap()(&self.contexts, &self.functions, &self.const_functions)
+            self.compiled.as_ref().unwrap()(&self.contexts, &self.functions, Rc::clone(&self.const_functions))
         }
     }
 
@@ -137,18 +140,18 @@ pub struct ExecOptions<'a> {
     expr: &'a Expr,
     contexts: Option<&'a [Context]>,
     functions: Option<&'a Functions>,
-    const_function: &'a ConstFunctions
+    const_functions:  Rc<RefCell<ConstFunctions>>
 }
 
 impl<'a> ExecOptions<'a> {
     /// Create an option.
     pub fn new(expr: &'a Expr) -> ExecOptions<'a> {
-        let cf = &expr.const_functions;
+        let cf = Rc::clone(&expr.const_functions);
         ExecOptions {
             expr,
             contexts: None,
             functions: None,
-            const_function: cf
+            const_functions: cf
         }
     }
 
@@ -183,9 +186,9 @@ impl<'a> ExecOptions<'a> {
 
         let compiled = self.expr.get_compiled();
         if let Some (c) = compiled {
-            (c)(contexts, functions, self.const_function)
+            (c)(contexts, functions, Rc::clone(&self.const_functions))
         } else {
-            Tree::new(self.expr.expression.clone()).compile()?(contexts, functions, self.const_function)
+            Tree::new(self.expr.expression.clone()).compile()?(contexts, functions,Rc::clone(&self.const_functions))
         }
     }
 }

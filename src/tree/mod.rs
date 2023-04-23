@@ -1,16 +1,16 @@
-
-use std::str::FromStr;
-use std::clone::Clone;
-use serde_json::Value;
-use crate::{to_value, ConstFunctions};
-use crate::math::Math;
-use crate::operator::Operator;
-use crate::node::Node;
-use crate::{Context, Functions};
-use crate::error::Error;
-use crate::Compiled;
 use crate::builtin::BuiltIn;
-
+use crate::error::Error;
+use crate::math::Math;
+use crate::node::Node;
+use crate::operator::Operator;
+use crate::Compiled;
+use crate::{to_value, ConstFunctions};
+use crate::{Context, Functions};
+use serde_json::Value;
+use std::cell::RefCell;
+use std::clone::Clone;
+use std::rc::Rc;
+use std::str::FromStr;
 
 #[derive(Default)]
 pub struct Tree {
@@ -22,7 +22,10 @@ pub struct Tree {
 
 impl Tree {
     pub fn new<T: Into<String>>(raw: T) -> Tree {
-        Tree { raw: raw.into(), ..Default::default() }
+        Tree {
+            raw: raw.into(),
+            ..Default::default()
+        }
     }
 
     pub fn parse_pos(&mut self) -> Result<(), Error> {
@@ -31,8 +34,8 @@ impl Tree {
 
         for (index, cur) in self.raw.chars().enumerate() {
             match cur {
-                '(' | ')' | '+' | '-' | '*' | '/' | ',' | ' ' | '!' | '=' | '>' | '<' | '\'' |
-                '[' | ']' | '.' | '%' | '&' | '|' => {
+                '(' | ')' | '+' | '-' | '*' | '/' | ',' | ' ' | '!' | '=' | '>' | '<' | '\''
+                | '[' | ']' | '.' | '%' | '&' | '|' => {
                     if !found_quote {
                         pos.push(index);
                         pos.push(index + 1);
@@ -152,8 +155,9 @@ impl Tree {
                     if !operators.is_empty() {
                         let prev_operator = operators.pop().unwrap();
                         if prev_operator.is_identifier() {
-                            operators.push(Operator::Function(prev_operator.get_identifier()
-                                .to_owned()));
+                            operators.push(Operator::Function(
+                                prev_operator.get_identifier().to_owned(),
+                            ));
                             operators.push(operator);
                             continue;
                         } else {
@@ -187,22 +191,22 @@ impl Tree {
 
         for operator in &self.operators {
             match *operator {
-                Operator::Add(priority) |
-                Operator::Sub(priority) |
-                Operator::Mul(priority) |
-                Operator::Div(priority) |
-                Operator::Not(priority) |
-                Operator::Eq(priority) |
-                Operator::Ne(priority) |
-                Operator::Gt(priority) |
-                Operator::Lt(priority) |
-                Operator::Ge(priority) |
-                Operator::And(priority) |
-                Operator::Or(priority) |
-                Operator::Le(priority) |
-                Operator::Dot(priority) |
-                Operator::LeftSquareBracket(priority) |
-                Operator::Rem(priority) => {
+                Operator::Add(priority)
+                | Operator::Sub(priority)
+                | Operator::Mul(priority)
+                | Operator::Div(priority)
+                | Operator::Not(priority)
+                | Operator::Eq(priority)
+                | Operator::Ne(priority)
+                | Operator::Gt(priority)
+                | Operator::Lt(priority)
+                | Operator::Ge(priority)
+                | Operator::And(priority)
+                | Operator::Or(priority)
+                | Operator::Le(priority)
+                | Operator::Dot(priority)
+                | Operator::LeftSquareBracket(priority)
+                | Operator::Rem(priority) => {
                     if !parsing_nodes.is_empty() {
                         let prev = parsing_nodes.pop().unwrap();
                         if prev.is_value_or_full_children() {
@@ -223,15 +227,16 @@ impl Tree {
                         return Err(Error::StartWithNonValueOperator);
                     }
                 }
-                Operator::Function(_) |
-                Operator::LeftParenthesis => parsing_nodes.push(operator.to_node()),
+                Operator::Function(_) | Operator::LeftParenthesis => {
+                    parsing_nodes.push(operator.to_node())
+                }
                 Operator::Comma => close_comma(&mut parsing_nodes)?,
-                Operator::RightParenthesis |
-                Operator::RightSquareBracket => {
+                Operator::RightParenthesis | Operator::RightSquareBracket => {
                     close_bracket(&mut parsing_nodes, operator.get_left())?
                 }
-                Operator::Value(_) |
-                Operator::Identifier(_) => append_value_to_last_node(&mut parsing_nodes, operator)?,
+                Operator::Value(_) | Operator::Identifier(_) => {
+                    append_value_to_last_node(&mut parsing_nodes, operator)?
+                }
                 _ => (),
             }
         }
@@ -247,78 +252,80 @@ impl Tree {
         let node = self.node.unwrap();
         let builtin = BuiltIn::new();
 
-        Ok(Box::new(move |contexts, functions, const_functions| -> Result<Value, Error> {
-            return exec_node(&node, &builtin, contexts, functions, const_functions);
+        Ok(Box::new(
+            move |contexts, functions, const_functions| -> Result<Value, Error> {
+                return exec_node(&node, &builtin, contexts, functions, const_functions);
 
+            #[rustfmt::skip]
             fn exec_node(node: &Node,
                          builtin: &Functions,
                          contexts: &[Context],
                          functions: &Functions,
-                         const_functions: &ConstFunctions,)
+                         const_functions: Rc<RefCell<ConstFunctions>>,)
                          -> Result<Value, Error> {
                 match node.operator {
                     Operator::Add(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .add(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .add(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Mul(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .mul(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .mul(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Sub(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .sub(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .sub(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Div(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .div(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .div(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Rem(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .rem(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .rem(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Eq(_) => {
-                        Math::eq(&exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)?,
-                                 &exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                        Math::eq(&exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))?,
+                                 &exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Ne(_) => {
-                        Math::ne(&exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)?,
-                                 &exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                        Math::ne(&exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))?,
+                                 &exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Gt(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .gt(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .gt(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Lt(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .lt(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .lt(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Ge(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .ge(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .ge(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Le(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .le(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .le(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::And(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .and(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .and(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Or(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)
+                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .or(&exec_node(&node.get_last_child(), builtin, contexts, functions, const_functions)?)
+                            .or(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Function(ref ident) => {
                         let function_option = if functions.contains_key(ident) {
@@ -328,14 +335,14 @@ impl Tree {
                         };
                         let mut values = Vec::new();
                         for node in &node.children {
-                            values.push(exec_node(node, builtin, contexts, functions, const_functions)?);
+                            values.push(exec_node(node, builtin, contexts, functions, Rc::clone(&const_functions))?);
                         }
 
                         if let Some(fo) = function_option {
                             let function = fo;
                             node.check_function_args(function)?;
                             (function.compiled)(values)
-                        } else if let Some(f) = const_functions.get(ident){
+                        } else if let Some(f) = const_functions.borrow().get(ident){
                             (f.compiled)(values)
                         } else {
                             Err(Error::FunctionNotExists(ident.to_owned()))
@@ -344,7 +351,7 @@ impl Tree {
                     Operator::Value(ref value) => Ok(value.clone()),
                     Operator::Not(_) => {
                         let value =
-                            exec_node(&node.get_first_child(), builtin, contexts, functions, const_functions)?;
+                            exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))?;
                         match value {
                             Value::Bool(boolean) => Ok(Value::Bool(!boolean)),
                             Value::Null => Ok(Value::Bool(true)),
@@ -355,7 +362,7 @@ impl Tree {
                         let mut value = None;
                         for child in &node.children {
                             if value.is_none() {
-                                let name = exec_node(child, builtin, contexts, functions, const_functions)?;
+                                let name = exec_node(child, builtin, contexts, functions, Rc::clone(&const_functions))?;
                                 if name.is_string() {
                                     value = find(contexts, name.as_str().unwrap());
                                     if value.is_none() {
@@ -387,7 +394,7 @@ impl Tree {
                     Operator::LeftSquareBracket(_) => {
                         let mut value = None;
                         for child in &node.children {
-                            let name = exec_node(child, builtin, contexts, functions, const_functions)?;
+                            let name = exec_node(child, builtin, contexts, functions, Rc::clone(&const_functions))?;
                             if value.is_none() {
                                 if name.is_string() {
                                     value = find(contexts, name.as_str().unwrap());
@@ -447,13 +454,15 @@ impl Tree {
                     _ => Err(Error::CanNotExec(node.operator.clone())),
                 }
             }
-        }))
+            },
+        ))
     }
 }
 
-fn append_value_to_last_node(parsing_nodes: &mut Vec<Node>,
-                             operator: &Operator)
-                             -> Result<(), Error> {
+fn append_value_to_last_node(
+    parsing_nodes: &mut Vec<Node>,
+    operator: &Operator,
+) -> Result<(), Error> {
     let mut node = operator.to_node();
     node.closed = true;
 
