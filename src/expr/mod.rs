@@ -98,7 +98,7 @@ impl Clone for Expr {
             },
             contexts: self.contexts.clone(),
             functions: Functions::new(),
-            const_functions: self.const_functions.clone()
+            const_functions: Rc::clone(&self.const_functions)
         }
     }
 }
