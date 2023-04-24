@@ -6,7 +6,6 @@ use serde::{
     Deserializer,
 };
 
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{fmt, cmp};
@@ -48,7 +47,7 @@ impl Expr {
     }
 
     /// Set const function. This functions be cloned. Have lowest priority. 
-    pub fn const_function<T>(mut self, name: T, function: StaticFunction)->Expr
+    pub fn const_function<T>(self, name: T, function: StaticFunction)->Expr
     where T: Into<String>{
         self.const_functions.borrow_mut().insert(name.into(), ConstFunction::new(function));
         self
