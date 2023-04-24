@@ -109,12 +109,13 @@ mod builtin;
 mod expr;
 
 pub use expr::ExecOptions;
+use function::ConstFunction;
 pub use serde_json::Value;
 pub use error::Error;
 pub use function::Function;
 pub use expr::Expr;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc, cell::RefCell};
 use serde_json::to_value as json_to_value;
 use serde::Serialize;
 
@@ -129,13 +130,15 @@ pub type Context = HashMap<String, Value>;
 pub type Contexts = Vec<Context>;
 /// Custom functions.
 pub type Functions = HashMap<String, Function>;
+/// Custom static function. Like fn
+pub type ConstFunctions = HashMap<String, ConstFunction>;
 
 /// Evaluates the value of an expression.
 pub fn eval(expr: &str) -> Result<Value, Error> {
     Expr::new(expr).compile()?.exec()
 }
 
-type Compiled = Box<dyn Fn(&[Context], &Functions) -> Result<Value, Error>>;
+type Compiled = Box<dyn Fn(&[Context], &Functions, Rc<RefCell<ConstFunctions>>) -> Result<Value, Error>>;
 
 #[cfg(test)]
 mod tests {
@@ -598,6 +601,45 @@ mod tests {
         assert_eq!(eval("2 * (4 + 0) + 4"), Ok(to_value(12)));
         assert_eq!(eval("2 * (2 + 2) + (1 + 3)"), Ok(to_value(12)));
         assert_eq!(eval("2 * (4) + (4)"), Ok(to_value(12)));
+    }
+
+    #[test]
+    fn test_eval_math_function(){
+        fn pow(v: Vec<Value>)->Result<Value, Error>{
+            let Some(base) = v.get(0) else {
+                return Err(Error::ArgumentsLess(2));
+            };
+            let Some(pow) = v.get(1) else {
+                return Err(Error::ArgumentsLess(2));
+            };
+            let Value::Number(base) = base else {
+                return Err(Error::ExpectedNumber);
+            };
+            let Value::Number(pow) = pow else {
+                return Err(Error::ExpectedNumber);
+            };
+            let Some(base) = base.as_i64() else {
+                return Err(Error::Custom("Must can into i64".into()));
+            };
+            let Some(pow) = pow.as_u64() else {
+                return Err(Error::Custom("Must can into u64".into()));
+            };
+            Ok(base.pow(pow as u32).into())
+        }
+        fn add2(v: Vec<Value>)->Result<Value, Error>{
+            let Some(base) = v.get(0) else {
+                return Err(Error::ArgumentsLess(1));
+            }; 
+            let Value::Number(base) = base else {
+                return Err(Error::ExpectedNumber);
+            };
+            let Some(base) = base.as_i64() else {
+                return Err(Error::Custom("Must can into i64".into()));
+            };
+            Ok((base + 2).into())
+        }
+        let e = Expr::new("add2(pow(2, 2) + pow(2, 2))").const_function("pow", pow).const_function("add2",add2);
+        assert_eq!(e.compile().unwrap().clone().exec(), Ok(to_value(4 + 4 + 2)));
     }
 }
 
