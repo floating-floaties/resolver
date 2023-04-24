@@ -120,6 +120,6 @@ assert_eq!(eval("0..5"), Ok(to_value(vec![0, 1, 2, 3, 4])));
 License
 -------
 
-resolver is under the terms of the [GPL-3.0-only](LICENSE) license.
+resolver is under the terms of the [MIT](LICENSE) license.
 
 See [LICENSE](LICENSE) for details.
