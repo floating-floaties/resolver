@@ -6,7 +6,7 @@ use crate::operator::Operator;
 
 quick_error! {
     /// Expression parsing error
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Eq)]
     pub enum Error {
         /// Unsupported operator yet.
         UnsupportedOperator(operator: String) {

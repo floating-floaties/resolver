@@ -6,7 +6,7 @@ use crate::error::Error;
 use crate::node::Node;
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Operator {
     Add(u8),
     Mul(u8),
@@ -38,19 +38,13 @@ pub enum Operator {
 
 impl Operator {
     pub fn is_identifier(&self) -> bool {
-        match *self {
-            Operator::Identifier(_) => true,
-            _ => false,
-        }
+        matches!(*self, Operator::Identifier(_))
     }
 
     pub fn can_at_beginning(&self) -> bool {
-        match *self {
-            Operator::Not(_) |
+        matches!(*self, Operator::Not(_) |
             Operator::Function(_) |
-            Operator::LeftParenthesis => true,
-            _ => false,
-        }
+            Operator::LeftParenthesis)
     }
 
     pub fn get_max_args(&self) -> Option<usize> {
@@ -103,37 +97,24 @@ impl Operator {
     }
 
     pub fn is_not(&self) -> bool {
-        match *self {
-            Operator::Not(_) => true,
-            _ => false,
-        }
+        matches!(*self, Operator::Not(_))
     }
 
     pub fn is_left_square_bracket(&self) -> bool {
-        match *self {
-            Operator::LeftSquareBracket(_) => true,
-            _ => false,
-        }
+        matches!(*self, Operator::LeftSquareBracket(_))
     }
 
     pub fn is_dot(&self) -> bool {
-        match *self {
-            Operator::Dot(_) => true,
-            _ => false,
-        }
+        matches!(*self, Operator::Dot(_))
     }
 
     pub fn is_value_or_ident(&self) -> bool {
-        match *self {
-            Operator::Value(_) |
-            Operator::Identifier(_) => true,
-            _ => false,
-        }
+        matches!(*self, Operator::Value(_) |
+            Operator::Identifier(_))
     }
 
     pub fn can_have_child(&self) -> bool {
-        match *self {
-            Operator::Function(_) |
+        matches!(*self, Operator::Function(_) |
             Operator::Add(_) |
             Operator::Sub(_) |
             Operator::Div(_) |
@@ -149,17 +130,12 @@ impl Operator {
             Operator::Not(_) |
             Operator::Dot(_) |
             Operator::LeftSquareBracket(_) |
-            Operator::Le(_) => true,
-            _ => false,
-        }
+            Operator::Le(_))
     }
 
     pub fn is_left(&self) -> bool {
-        match *self {
-            Operator::LeftParenthesis |
-            Operator::LeftSquareBracket(_) => true,
-            _ => false,
-        }
+        matches!(*self, Operator::LeftParenthesis |
+            Operator::LeftSquareBracket(_))
     }
 
     pub fn get_left(&self) -> Operator {

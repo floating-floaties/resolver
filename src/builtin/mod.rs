@@ -3,16 +3,15 @@ use crate::{Function, Functions, Value, to_value};
 use crate::math::Math;
 use crate::error::Error;
 
-
-pub struct BuiltIn {}
+pub struct BuiltIn;
 
 impl BuiltIn {
-    pub fn new() -> Functions {
+    pub fn create_builtins() -> Functions {
         let mut functions = Functions::new();
-        functions.insert("min".to_owned(), create_min_fuction());
-        functions.insert("max".to_owned(), create_max_fuction());
-        functions.insert("len".to_owned(), create_len_fuction());
-        functions.insert("is_empty".to_owned(), create_is_empty_fuction());
+        functions.insert("min".to_owned(), create_min_function());
+        functions.insert("max".to_owned(), create_max_function());
+        functions.insert("len".to_owned(), create_len_function());
+        functions.insert("is_empty".to_owned(), create_is_empty_function());
         functions.insert("array".to_owned(), create_array_function());
         functions
     }
@@ -24,11 +23,11 @@ enum Compare {
     Max,
 }
 
-fn create_min_fuction() -> Function {
+fn create_min_function() -> Function {
     compare(Compare::Min)
 }
 
-fn create_max_fuction() -> Function {
+fn create_max_function() -> Function {
     compare(Compare::Max)
 }
 
@@ -78,7 +77,7 @@ fn compare(compare: Compare) -> Function {
 }
 
 
-fn create_is_empty_fuction() -> Function {
+fn create_is_empty_function() -> Function {
     Function {
         max_args: Some(1),
         min_args: Some(1),
@@ -92,7 +91,7 @@ fn create_is_empty_fuction() -> Function {
     }
 }
 
-fn create_len_fuction() -> Function {
+fn create_len_function() -> Function {
     Function {
         max_args: Some(1),
         min_args: Some(1),

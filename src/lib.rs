@@ -93,7 +93,7 @@
 #![recursion_limit="100"]
 #![deny(missing_docs)]
 
-#[forbid(unsafe_code)]
+#![forbid(unsafe_code)]
 #[macro_use]
 extern crate quick_error;
 extern crate serde;
@@ -639,7 +639,7 @@ mod tests {
             Ok((base + 2).into())
         }
         let e = Expr::new("add2(pow(2, 2) + pow(2, 2))").const_function("pow", pow).const_function("add2",add2);
-        assert_eq!(e.compile().unwrap().clone().exec(), Ok(to_value(4 + 4 + 2)));
+        assert_eq!(e.compile().unwrap().exec(), Ok(to_value(4 + 4 + 2)));
     }
 }
 

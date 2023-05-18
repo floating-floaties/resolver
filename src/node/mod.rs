@@ -40,10 +40,10 @@ impl Node {
 
     pub fn is_enough(&self) -> bool {
         let num = self.operator.get_max_args();
-        if num.is_none() {
-            false
+        if let Some(value) = num {
+            self.children.len() == value
         } else {
-            self.children.len() == num.unwrap()
+            false
         }
     }
 
@@ -58,7 +58,7 @@ impl Node {
     }
 
     pub fn is_unclosed_arithmetic(&self) -> bool {
-        return !self.closed && self.operator.can_have_child() && self.operator.can_have_child()
+        !self.closed && self.operator.can_have_child() && self.operator.can_have_child()
     }
 
     pub fn is_unclosed_function(&self) -> bool {
@@ -76,17 +76,11 @@ impl Node {
     }
 
     pub fn is_left_square_bracket(&self) -> bool {
-        match self.operator {
-            Operator::LeftSquareBracket(_) => true,
-            _ => false,
-        }
+        matches!(self.operator, Operator::LeftSquareBracket(_))
     }
 
     pub fn is_dot(&self) -> bool {
-        match self.operator {
-            Operator::Dot(_) => true,
-            _ => false,
-        }
+        matches!(self.operator, Operator::Dot(_))
     }
 
     pub fn add_child(&mut self, node: Node) {
@@ -101,7 +95,7 @@ impl Node {
         self.children.last().unwrap().clone()
     }
 
-    pub fn moveout_last_node(&mut self) -> Node {
+    pub fn move_out_last_node(&mut self) -> Node {
         self.children.pop().unwrap()
     }
 }

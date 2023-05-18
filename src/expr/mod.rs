@@ -8,7 +8,7 @@ use serde::{
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::{fmt, cmp};
+use std::fmt;
 
 use crate::function::{StaticFunction, ConstFunction};
 use crate::tree::Tree;
@@ -108,7 +108,7 @@ impl fmt::Debug for Expr {
     }
 }
 
-impl cmp::PartialEq for Expr {
+impl PartialEq for Expr {
     fn eq(&self, other: &Expr) -> bool {
         self.expression == other.expression
     }

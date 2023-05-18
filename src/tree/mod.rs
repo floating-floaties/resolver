@@ -250,7 +250,7 @@ impl Tree {
         self.parse_operators()?;
         self.parse_node()?;
         let node = self.node.unwrap();
-        let builtin = BuiltIn::new();
+        let builtin = BuiltIn::create_builtins();
 
         Ok(Box::new(
             move |contexts, functions, const_functions| -> Result<Value, Error> {
@@ -385,10 +385,10 @@ impl Tree {
                             }
                         }
 
-                        if value.is_some() {
-                            return Ok(value.unwrap());
+                        if let Some(v) = value {
+                            Ok(v)
                         } else {
-                            return Ok(Value::Null);
+                            Ok(Value::Null)
                         }
                     }
                     Operator::LeftSquareBracket(_) => {
@@ -433,9 +433,9 @@ impl Tree {
                             }
                         }
                         if let Some(v) = value {
-                            return Ok(v);
+                            Ok(v)
                         } else {
-                            return Ok(Value::Null);
+                            Ok(Value::Null)
                         }
                     }
                     Operator::Identifier(ref ident) => {
@@ -536,16 +536,16 @@ fn close_bracket(parsing_nodes: &mut Vec<Node>, bracket: Operator) -> Result<(),
                 current.closed = true;
             }
 
-            if let Some(mut penult) = parsing_nodes.pop() {
-                if penult.is_unclosed_function() {
-                    penult.closed = true;
-                    penult.add_child(current);
-                    parsing_nodes.push(penult);
-                } else if penult.is_unclosed_arithmetic() {
-                    penult.add_child(current);
-                    parsing_nodes.push(penult);
+            if let Some(mut p) = parsing_nodes.pop() {
+                if p.is_unclosed_function() {
+                    p.closed = true;
+                    p.add_child(current);
+                    parsing_nodes.push(p);
+                } else if p.is_unclosed_arithmetic() {
+                    p.add_child(current);
+                    parsing_nodes.push(p);
                 } else {
-                    parsing_nodes.push(penult);
+                    parsing_nodes.push(p);
                     parsing_nodes.push(current);
                 }
             } else {
@@ -588,10 +588,10 @@ fn close_comma(parsing_nodes: &mut Vec<Node>) -> Result<(), Error> {
             parsing_nodes.push(current);
             break;
         } else if prev.operator.is_left() {
-            if let Some(mut penult) = parsing_nodes.pop() {
-                if penult.is_unclosed_function() {
-                    penult.add_child(current);
-                    parsing_nodes.push(penult);
+            if let Some(mut p) = parsing_nodes.pop() {
+                if p.is_unclosed_function() {
+                    p.add_child(current);
+                    parsing_nodes.push(p);
                     parsing_nodes.push(prev);
                     break;
                 } else {
@@ -618,10 +618,10 @@ fn close_comma(parsing_nodes: &mut Vec<Node>) -> Result<(), Error> {
     Ok(())
 }
 
-fn rob_to(mut was_robed: Node, mut rober: Node) -> Vec<Node> {
-    let moveout_node = was_robed.moveout_last_node();
-    rober.add_child(moveout_node);
-    vec![was_robed, rober]
+fn rob_to(mut was_robed: Node, mut robber: Node) -> Vec<Node> {
+    let move_out_node = was_robed.move_out_last_node();
+    robber.add_child(move_out_node);
+    vec![was_robed, robber]
 }
 
 fn find(contexts: &[Context], key: &str) -> Option<Value> {
@@ -647,14 +647,17 @@ fn parse_range(ident: &str) -> Result<Value, Error> {
         let start = segments[0].parse::<i64>();
         let end = segments[1].parse::<i64>();
 
-        if start.is_ok() && end.is_ok() {
-            let mut array = Vec::new();
-            for n in start.unwrap()..end.unwrap() {
-                array.push(n);
+        match (start, end) {
+            (Ok(start), Ok(end)) => {
+                let mut array = Vec::new();
+                for n in start..end {
+                    array.push(n);
+                }
+                Ok(to_value(array))
             }
-            Ok(to_value(array))
-        } else {
-            Err(Error::InvalidRange(ident.to_owned()))
+            _ => {
+                Err(Error::InvalidRange(ident.to_owned()))
+            }
         }
     }
 }
