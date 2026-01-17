@@ -155,13 +155,13 @@ impl<'a> ExecOptions<'a> {
     }
 
     /// Set contexts.
-    pub fn contexts(&mut self, contexts: &'a [Context]) -> &'a mut ExecOptions {
+    pub fn contexts(&mut self, contexts: &'a [Context]) -> &'a mut ExecOptions<'_> {
         self.contexts = Some(contexts);
         self
     }
 
     /// Set functions.
-    pub fn functions(&mut self, functions: &'a Functions) -> &'a mut ExecOptions {
+    pub fn functions(&mut self, functions: &'a Functions) -> &'a mut ExecOptions<'_> {
         self.functions = Some(functions);
         self
     }

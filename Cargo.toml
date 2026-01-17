@@ -11,6 +11,9 @@ repository = "https://github.com/floating-floaties/resolver/"
 readme = "README.md"
 license = "MIT"
 
+[features]
+unstable = []
+
 [lib]
 name = "resolver"
 path = "src/lib.rs"
