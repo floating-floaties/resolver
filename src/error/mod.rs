@@ -80,6 +80,14 @@ quick_error! {
         UnsupportedTypes(a: String, b: String) {
             display("This two value types are different or do not support mathematical calculations: {}, {}", a, b)
         }
+        /// Division by zero.
+        DivisionByZero {
+            display("Division by zero.")
+        }
+        /// Modulo by zero.
+        ModuloByZero {
+            display("Modulo by zero.")
+        }
         /// Invalid range expression like `1..2..3`
         InvalidRange(ident: String) {
             display("Invalid range expression: {}", ident)

@@ -58,7 +58,7 @@ impl Node {
     }
 
     pub fn is_unclosed_arithmetic(&self) -> bool {
-        !self.closed && self.operator.can_have_child() && self.operator.can_have_child()
+        !self.closed && self.operator.can_have_child()
     }
 
     pub fn is_unclosed_function(&self) -> bool {
@@ -87,12 +87,14 @@ impl Node {
         self.children.push(node);
     }
 
-    pub fn get_first_child(&self) -> Node {
-        self.children.first().unwrap().clone()
+    pub fn get_first_child(&self) -> Result<Node, crate::error::Error> {
+        self.children.first().cloned()
+            .ok_or_else(|| crate::error::Error::CanNotExec(self.operator.clone()))
     }
 
-    pub fn get_last_child(&self) -> Node {
-        self.children.last().unwrap().clone()
+    pub fn get_last_child(&self) -> Result<Node, crate::error::Error> {
+        self.children.last().cloned()
+            .ok_or_else(|| crate::error::Error::CanNotExec(self.operator.clone()))
     }
 
     pub fn move_out_last_node(&mut self) -> Node {

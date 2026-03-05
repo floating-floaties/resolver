@@ -64,6 +64,9 @@ impl Math for Value {
 
     fn div(&self, value: &Value) -> Result<Value, Error> {
         if self.is_number() && value.is_number() {
+            if value.get_f64() == 0.0 {
+                return Err(Error::DivisionByZero);
+            }
             Ok(to_value(self.get_f64() / value.get_f64()))
         } else {
             Err(Error::UnsupportedTypes(self.format(), value.format()))
@@ -73,10 +76,19 @@ impl Math for Value {
     fn rem(&self, value: &Value) -> Result<Value, Error> {
         if self.is_number() && value.is_number() {
             if self.is_f64() || value.is_f64() {
+                if value.get_f64() == 0.0 {
+                    return Err(Error::ModuloByZero);
+                }
                 Ok(to_value(self.get_f64() % value.get_f64()))
             } else if self.is_i64() || value.is_i64() {
+                if value.get_i64() == 0 {
+                    return Err(Error::ModuloByZero);
+                }
                 Ok(to_value(self.get_i64() % value.get_i64()))
             } else {
+                if value.get_u64() == 0 {
+                    return Err(Error::ModuloByZero);
+                }
                 Ok(to_value(self.get_u64() % value.get_u64()))
             }
         } else {

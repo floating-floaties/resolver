@@ -90,7 +90,7 @@
 //! Accept multiple arguments and return an array.
 //!
 //!
-#![recursion_limit="100"]
+#![recursion_limit="200"]
 #![deny(missing_docs)]
 
 #![forbid(unsafe_code)]
@@ -640,5 +640,124 @@ mod tests {
         }
         let e = Expr::new("add2(pow(2, 2) + pow(2, 2))").const_function("pow", pow).const_function("add2",add2);
         assert_eq!(e.compile().unwrap().exec(), Ok(to_value(4 + 4 + 2)));
+    }
+
+    #[test]
+    fn test_div_by_zero() {
+        use crate::eval;
+        assert_eq!(eval("5 / 0"), Err(Error::DivisionByZero));
+    }
+
+    #[test]
+    fn test_rem_by_zero() {
+        use crate::eval;
+        assert_eq!(eval("5 % 0"), Err(Error::ModuloByZero));
+    }
+
+    #[test]
+    fn test_short_circuit_and() {
+        use crate::eval;
+        // right side would produce DivisionByZero if evaluated
+        assert_eq!(eval("false && (1 / 0 > 0)"), Ok(to_value(false)));
+    }
+
+    #[test]
+    fn test_short_circuit_or() {
+        use crate::eval;
+        // right side would produce DivisionByZero if evaluated
+        assert_eq!(eval("true || (1 / 0 > 0)"), Ok(to_value(true)));
+    }
+
+    #[test]
+    fn test_empty_string_double_quotes() {
+        use crate::eval;
+        assert_eq!(eval(r#""""#), Ok(to_value("")));
+    }
+
+    #[test]
+    fn test_empty_string_single_quotes() {
+        use crate::eval;
+        assert_eq!(eval("''"), Ok(to_value("")));
+    }
+
+    #[test]
+    fn test_not_non_boolean() {
+        use crate::eval;
+        // !(2 + 3) forces Not to operate on a numeric result
+        assert_eq!(eval("!(2 + 3)"), Err(Error::ExpectedBoolean(to_value(5_u64))));
+    }
+
+    #[test]
+    fn test_len_boolean() {
+        assert!(Expr::new("len(v)").value("v", true).exec().is_err());
+    }
+
+    #[test]
+    fn test_string_gt() {
+        use crate::eval;
+        assert!(eval("'b' > 'a'").is_err());
+    }
+
+    #[test]
+    fn test_min_no_args() {
+        use crate::eval;
+        assert_eq!(eval("min()"), Err(Error::ArgumentsLess(1)));
+    }
+
+    #[test]
+    fn test_is_empty_null() {
+        use crate::eval;
+        // unset variable resolves to Null, is_empty(Null) should be true
+        assert_eq!(eval("is_empty(hos)"), Ok(to_value(true)));
+    }
+
+    #[test]
+    fn test_is_empty_number() {
+        assert_eq!(
+            Expr::new("is_empty(v)").value("v", 0_i32).exec(),
+            Ok(to_value(false))
+        );
+    }
+
+    #[test]
+    fn test_chained_dot_access() {
+        let mut inner = HashMap::new();
+        inner.insert("b", "deep");
+        let mut outer = HashMap::new();
+        outer.insert("a", to_value(inner));
+        assert_eq!(
+            Expr::new("obj.a.b").value("obj", outer).exec(),
+            Ok(to_value("deep"))
+        );
+    }
+
+    #[test]
+    fn test_and_non_boolean() {
+        use crate::eval;
+        assert!(eval("1 && true").is_err());
+    }
+
+    #[test]
+    fn test_or_non_boolean() {
+        use crate::eval;
+        assert!(eval("1 || false").is_err());
+    }
+
+    #[test]
+    fn test_null_arithmetic() {
+        use crate::eval;
+        assert!(eval("hos + 1").is_err());
+    }
+
+    #[test]
+    fn test_div_float_by_zero() {
+        use crate::eval;
+        assert_eq!(eval("5.0 / 0.0"), Err(Error::DivisionByZero));
+    }
+
+    #[test]
+    fn test_rem_float_by_zero() {
+        use crate::eval;
+        assert_eq!(eval("5.5 % 0.0"), Err(Error::ModuloByZero));
     }
 }

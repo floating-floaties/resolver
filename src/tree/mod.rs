@@ -32,7 +32,7 @@ impl Tree {
         let mut found_quote = false;
         let mut pos = Vec::new();
 
-        for (index, cur) in self.raw.chars().enumerate() {
+        for (index, cur) in self.raw.char_indices() {
             match cur {
                 '(' | ')' | '+' | '-' | '*' | '/' | ',' | ' ' | '!' | '=' | '>' | '<' | '\''
                 | '[' | ']' | '.' | '%' | '&' | '|' => {
@@ -265,74 +265,88 @@ impl Tree {
                          -> Result<Value, Error> {
                 match node.operator {
                     Operator::Add(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
+                        exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .add(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                            .add(&exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Mul(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
+                        exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .mul(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                            .mul(&exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Sub(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
+                        exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .sub(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                            .sub(&exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Div(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
+                        exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .div(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                            .div(&exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Rem(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
+                        exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .rem(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                            .rem(&exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Eq(_) => {
-                        Math::eq(&exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))?,
-                                 &exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                        Math::eq(&exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?,
+                                 &exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Ne(_) => {
-                        Math::ne(&exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))?,
-                                 &exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                        Math::ne(&exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?,
+                                 &exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Gt(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
+                        exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .gt(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                            .gt(&exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Lt(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
+                        exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .lt(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                            .lt(&exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Ge(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
+                        exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .ge(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                            .ge(&exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::Le(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
+                        exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))
                             ?
-                            .le(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                            .le(&exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?)
                     }
                     Operator::And(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
-                            ?
-                            .and(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                        let left = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match left {
+                            Value::Bool(false) => Ok(Value::Bool(false)),
+                            Value::Bool(true) => {
+                                let right = exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                                match right {
+                                    Value::Bool(b) => Ok(Value::Bool(b)),
+                                    _ => Err(Error::UnsupportedTypes(format!("{:?}", left), format!("{:?}", right))),
+                                }
+                            }
+                            _ => Err(Error::UnsupportedTypes(format!("{:?}", left), "bool".to_string())),
+                        }
                     }
                     Operator::Or(_) => {
-                        exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))
-                            ?
-                            .or(&exec_node(&node.get_last_child(), builtin, contexts, functions, Rc::clone(&const_functions))?)
+                        let left = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match left {
+                            Value::Bool(true) => Ok(Value::Bool(true)),
+                            Value::Bool(false) => {
+                                let right = exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                                match right {
+                                    Value::Bool(b) => Ok(Value::Bool(b)),
+                                    _ => Err(Error::UnsupportedTypes(format!("{:?}", left), format!("{:?}", right))),
+                                }
+                            }
+                            _ => Err(Error::UnsupportedTypes(format!("{:?}", left), "bool".to_string())),
+                        }
                     }
                     Operator::Function(ref ident) => {
-                        let function_option = if functions.contains_key(ident) {
-                            functions.get(ident)
-                        } else {
-                            builtin.get(ident)
-                        };
+                        let function_option = functions.get(ident).or_else(|| builtin.get(ident));
                         let mut values = Vec::new();
                         for node in &node.children {
                             values.push(exec_node(node, builtin, contexts, functions, Rc::clone(&const_functions))?);
@@ -351,7 +365,7 @@ impl Tree {
                     Operator::Value(ref value) => Ok(value.clone()),
                     Operator::Not(_) => {
                         let value =
-                            exec_node(&node.get_first_child(), builtin, contexts, functions, Rc::clone(&const_functions))?;
+                            exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
                         match value {
                             Value::Bool(boolean) => Ok(Value::Bool(!boolean)),
                             Value::Null => Ok(Value::Bool(true)),
@@ -419,15 +433,24 @@ impl Tree {
                                 }
                             } else if name.is_u64() {
                                 if value.as_ref().unwrap().is_array() {
+                                    let raw_idx = name.as_u64().unwrap();
+                                    let idx = usize::try_from(raw_idx).map_err(|_| {
+                                        Error::Custom(format!("array index {} is out of range", raw_idx))
+                                    })?;
                                     value = value.as_ref()
                                         .unwrap()
                                         .as_array()
                                         .unwrap()
-                                        .get(name.as_u64().unwrap() as usize)
+                                        .get(idx)
                                         .cloned();
                                 } else {
                                     return Err(Error::ExpectedArray);
                                 }
+                            } else if name.is_i64() {
+                                return Err(Error::Custom(format!(
+                                    "array index must be non-negative, got {}",
+                                    name.as_i64().unwrap()
+                                )));
                             } else {
                                 return Err(Error::ExpectedNumber);
                             }
@@ -513,6 +536,9 @@ fn get_final_node(mut parsing_nodes: Vec<Node>) -> Result<Node, Error> {
 
 fn close_bracket(parsing_nodes: &mut Vec<Node>, bracket: Operator) -> Result<(), Error> {
     loop {
+        if parsing_nodes.len() < 2 {
+            return Err(Error::UnpairedBrackets);
+        }
         let mut current = parsing_nodes.pop().unwrap();
         let mut prev = parsing_nodes.pop().unwrap();
 
@@ -577,6 +603,9 @@ fn close_comma(parsing_nodes: &mut Vec<Node>) -> Result<(), Error> {
     }
 
     loop {
+        if parsing_nodes.len() < 2 {
+            return Err(Error::CommaNotWithFunction);
+        }
         let current = parsing_nodes.pop().unwrap();
         let mut prev = parsing_nodes.pop().unwrap();
 
@@ -639,26 +668,23 @@ fn is_range(ident: &str) -> bool {
     ident.contains("..")
 }
 
-fn parse_range(ident: &str) -> Result<Value, Error> {
-    let segments = ident.split("..").collect::<Vec<_>>();
-    if segments.len() != 2 {
-        Err(Error::InvalidRange(ident.to_owned()))
-    } else {
-        let start = segments[0].parse::<i64>();
-        let end = segments[1].parse::<i64>();
+const MAX_RANGE_SIZE: i64 = 1_000_000;
 
-        match (start, end) {
-            (Ok(start), Ok(end)) => {
-                let mut array = Vec::new();
-                for n in start..end {
-                    array.push(n);
+fn parse_range(ident: &str) -> Result<Value, Error> {
+    match ident.split_once("..") {
+        Some((s, e)) if !e.contains("..") => {
+            match (s.parse::<i64>(), e.parse::<i64>()) {
+                (Ok(start), Ok(end)) => {
+                    let size = end.checked_sub(start).unwrap_or(i64::MAX);
+                    if size > MAX_RANGE_SIZE {
+                        return Err(Error::InvalidRange(ident.to_owned()));
+                    }
+                    Ok(to_value((start..end).collect::<Vec<i64>>()))
                 }
-                Ok(to_value(array))
-            }
-            _ => {
-                Err(Error::InvalidRange(ident.to_owned()))
+                _ => Err(Error::InvalidRange(ident.to_owned())),
             }
         }
+        _ => Err(Error::InvalidRange(ident.to_owned())),
     }
 }
 

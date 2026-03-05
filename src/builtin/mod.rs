@@ -98,7 +98,7 @@ fn create_len_function() -> Function {
         compiled: Box::new(|values| {
             let value = values.first().unwrap();
             match *value {
-                Value::String(ref string) => Ok(to_value(string.len())),
+                Value::String(ref string) => Ok(to_value(string.chars().count())),
                 Value::Array(ref array) => Ok(to_value(array.len())),
                 Value::Object(ref object) => Ok(to_value(object.len())),
                 Value::Null => Ok(to_value(0)),
