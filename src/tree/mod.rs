@@ -35,7 +35,7 @@ impl Tree {
         for (index, cur) in self.raw.char_indices() {
             match cur {
                 '(' | ')' | '+' | '-' | '*' | '/' | ',' | ' ' | '!' | '=' | '>' | '<' | '\''
-                | '[' | ']' | '.' | '%' | '&' | '|' => {
+                | '[' | ']' | '.' | '%' | '&' | '|' | '?' | '^' | '~' => {
                     if !found_quote {
                         pos.push(index);
                         pos.push(index + 1);
@@ -110,6 +110,9 @@ impl Tree {
             } else if !number.is_empty() {
                 operators.push(Operator::from_str(&number).unwrap());
                 number.clear();
+                // Clear prev so a trailing * or ? doesn't falsely combine with
+                // the operator that follows the number (e.g. `2 * 3 ** 4`).
+                prev.clear();
             }
 
             if raw == "=" {
@@ -122,10 +125,18 @@ impl Tree {
                 }
                 continue;
             } else if raw == "!" || raw == ">" || raw == "<" {
-                if prev == "!" || prev == ">" || prev == "<" {
-                    operators.push(Operator::from_str(&prev).unwrap());
+                if prev == raw && (raw == "<" || raw == ">") {
+                    // << or >>
+                    operators.push(if raw == "<" { Operator::Shl(9) } else { Operator::Shr(9) });
                     prev.clear();
                 } else {
+                    if prev == "!" || prev == ">" || prev == "<" {
+                        operators.push(Operator::from_str(&prev).unwrap());
+                    } else if prev == "&" {
+                        operators.push(Operator::BitAnd(7));
+                    } else if prev == "|" {
+                        operators.push(Operator::BitOr(3));
+                    }
                     prev = raw;
                 }
                 continue;
@@ -134,19 +145,24 @@ impl Tree {
                 prev.clear();
             }
 
-            if (raw == "&" || raw == "|") && (prev == "&" || prev == "|") {
-                if raw == prev {
-                    prev.push_str(&raw);
-                    operators.push(Operator::from_str(&prev).unwrap());
+            if raw == "&" || raw == "|" {
+                if prev == raw {
+                    // && or ||
+                    let mut combined = prev.clone();
+                    combined.push_str(&raw);
+                    operators.push(Operator::from_str(&combined).unwrap());
                     prev.clear();
-                    continue;
                 } else {
-                    return Err(Error::UnsupportedOperator(prev));
+                    // Flush any pending single & or | as bitwise operators
+                    if prev == "&" { operators.push(Operator::BitAnd(7)); }
+                    else if prev == "|" { operators.push(Operator::BitOr(3)); }
+                    prev = raw;
                 }
-            } else if raw == "&" || raw == "|" {
-                prev = raw;
                 continue;
             }
+            // Flush pending single & or | before any other operator
+            if prev == "&" { operators.push(Operator::BitAnd(7)); prev.clear(); }
+            else if prev == "|" { operators.push(Operator::BitOr(3)); prev.clear(); }
 
             match operator {
                 Operator::LeftParenthesis => {
@@ -168,6 +184,63 @@ impl Tree {
                 Operator::RightParenthesis => parenthesis -= 1,
                 Operator::WhiteSpace => continue,
                 _ => (),
+            }
+
+            // Detect ** (exponentiation): second * seen right after a first *.
+            // The first * was already pushed as Mul; replace it with Pow.
+            if raw == "*" && prev == "*" {
+                if operators.last().map_or(false, |op| matches!(op, Operator::Mul(_))) {
+                    operators.pop();
+                }
+                operators.push(Operator::Pow(12));
+                prev.clear();
+                continue;
+            }
+
+            // Detect ?? (null-coalesce).
+            if raw == "?" {
+                if prev == "?" {
+                    operators.push(Operator::NullCoalesce(1));
+                    prev.clear();
+                } else {
+                    prev = raw;
+                }
+                continue;
+            } else if prev == "?" {
+                return Err(Error::UnsupportedOperator("?".to_string()));
+            }
+
+            // ~ is always a unary bitwise NOT; push directly.
+            if let Operator::BitNot = operator {
+                operators.push(Operator::BitNot);
+                prev = raw;
+                continue;
+            }
+
+            // Detect unary minus: `-` that follows no value/closing-bracket.
+            if let Operator::Sub(_) = operator {
+                let is_unary = operators.last().map_or(true, |last| {
+                    !matches!(last,
+                        Operator::Value(_) |
+                        Operator::Identifier(_) |
+                        Operator::RightParenthesis |
+                        Operator::RightSquareBracket)
+                });
+                if is_unary {
+                    operators.push(Operator::UnaryMinus(11));
+                    prev = raw;
+                    continue;
+                }
+            }
+
+            // `not in` → NotIn operator: when `in` immediately follows `not` identifier.
+            if let Operator::In(_) = operator {
+                if matches!(operators.last(), Some(Operator::Identifier(s)) if s == "not") {
+                    operators.pop();
+                    operators.push(Operator::NotIn(6));
+                    prev = raw;
+                    continue;
+                }
             }
 
             prev = raw;
@@ -206,13 +279,45 @@ impl Tree {
                 | Operator::Le(priority)
                 | Operator::Dot(priority)
                 | Operator::LeftSquareBracket(priority)
-                | Operator::Rem(priority) => {
+                | Operator::Rem(priority)
+                | Operator::Pow(priority)
+                | Operator::NullCoalesce(priority)
+                | Operator::In(priority)
+                | Operator::NotIn(priority)
+                | Operator::BitAnd(priority)
+                | Operator::BitOr(priority)
+                | Operator::BitXor(priority)
+                | Operator::Shl(priority)
+                | Operator::Shr(priority) => {
                     if !parsing_nodes.is_empty() {
-                        let prev = parsing_nodes.pop().unwrap();
+                        let mut prev = parsing_nodes.pop().unwrap();
                         if prev.is_value_or_full_children() {
                             if prev.operator.get_priority() < priority && !prev.closed {
                                 parsing_nodes.extend_from_slice(&rob_to(prev, operator.to_node()));
                             } else {
+                                // Fold prev into any unclosed parent with >= priority
+                                // so that e.g. `1 in array(1,2,3) && ...` correctly
+                                // makes the function result a child of `in` before `&&`
+                                // consumes it.
+                                loop {
+                                    if let Some(parent) = parsing_nodes.last() {
+                                        if parent.is_unclosed_arithmetic()
+                                            && parent.operator.get_priority() >= priority
+                                            && parent.operator.get_max_args().map_or(false, |n| n > 0)
+                                        {
+                                            let mut parent = parsing_nodes.pop().unwrap();
+                                            parent.add_child(prev);
+                                            if parent.is_enough() {
+                                                parent.closed = true;
+                                            }
+                                            prev = parent;
+                                        } else {
+                                            break;
+                                        }
+                                    } else {
+                                        break;
+                                    }
+                                }
                                 parsing_nodes.push(operator.children_to_node(vec![prev]));
                             }
                         } else if prev.operator.can_at_beginning() {
@@ -227,7 +332,10 @@ impl Tree {
                         return Err(Error::StartWithNonValueOperator);
                     }
                 }
-                Operator::Function(_) | Operator::LeftParenthesis => {
+                // UnaryMinus is pushed directly (like a left-paren) so it
+                // can appear after any binary operator without triggering the
+                // DuplicateOperatorNode error.
+                Operator::Function(_) | Operator::LeftParenthesis | Operator::UnaryMinus(_) | Operator::BitNot => {
                     parsing_nodes.push(operator.to_node())
                 }
                 Operator::Comma => close_comma(&mut parsing_nodes)?,
@@ -345,19 +453,192 @@ impl Tree {
                             _ => Err(Error::UnsupportedTypes(format!("{:?}", left), "bool".to_string())),
                         }
                     }
+                    Operator::UnaryMinus(_) => {
+                        let value = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match value {
+                            Value::Number(ref n) => {
+                                if let Some(i) = n.as_i64() {
+                                    Ok(to_value(-i))
+                                } else if let Some(f) = n.as_f64() {
+                                    Ok(to_value(-f))
+                                } else {
+                                    Ok(to_value(-(n.as_u64().unwrap() as i64)))
+                                }
+                            }
+                            _ => Err(Error::ExpectedNumber),
+                        }
+                    }
+                    Operator::Pow(_) => {
+                        let base = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        let exp  = exec_node(&node.get_last_child()?,  builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match (&base, &exp) {
+                            (Value::Number(b), Value::Number(e)) => {
+                                Ok(to_value(b.as_f64().unwrap().powf(e.as_f64().unwrap())))
+                            }
+                            _ => Err(Error::UnsupportedTypes(format!("{:?}", base), format!("{:?}", exp))),
+                        }
+                    }
+                    Operator::NullCoalesce(_) => {
+                        let left = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match left {
+                            Value::Null => exec_node(&node.get_last_child()?, builtin, contexts, functions, Rc::clone(&const_functions)),
+                            _ => Ok(left),
+                        }
+                    }
+                    Operator::In(_) => {
+                        let left  = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        let right = exec_node(&node.get_last_child()?,  builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match &right {
+                            Value::Array(arr) => Ok(to_value(arr.contains(&left))),
+                            Value::Object(obj) => {
+                                if let Some(key) = left.as_str() {
+                                    Ok(to_value(obj.contains_key(key)))
+                                } else {
+                                    Err(Error::Custom(format!(
+                                        "in: left operand must be a string when right is an object, got {:?}", left
+                                    )))
+                                }
+                            }
+                            Value::String(s) => {
+                                if let Some(sub) = left.as_str() {
+                                    Ok(to_value(s.contains(sub)))
+                                } else {
+                                    Err(Error::Custom(format!(
+                                        "in: left operand must be a string when right is a string, got {:?}", left
+                                    )))
+                                }
+                            }
+                            _ => Err(Error::UnsupportedTypes(format!("{:?}", left), format!("{:?}", right))),
+                        }
+                    }
+                    Operator::NotIn(_) => {
+                        let left  = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        let right = exec_node(&node.get_last_child()?,  builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match &right {
+                            Value::Array(arr) => Ok(to_value(!arr.contains(&left))),
+                            Value::Object(obj) => {
+                                if let Some(key) = left.as_str() {
+                                    Ok(to_value(!obj.contains_key(key)))
+                                } else {
+                                    Err(Error::Custom(format!(
+                                        "not in: left operand must be a string when right is an object, got {:?}", left
+                                    )))
+                                }
+                            }
+                            Value::String(s) => {
+                                if let Some(sub) = left.as_str() {
+                                    Ok(to_value(!s.contains(sub)))
+                                } else {
+                                    Err(Error::Custom(format!(
+                                        "not in: left operand must be a string when right is a string, got {:?}", left
+                                    )))
+                                }
+                            }
+                            _ => Err(Error::UnsupportedTypes(format!("{:?}", left), format!("{:?}", right))),
+                        }
+                    }
+                    Operator::BitAnd(_) => {
+                        let left  = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        let right = exec_node(&node.get_last_child()?,  builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match (&left, &right) {
+                            (Value::Number(l), Value::Number(r)) => {
+                                let l = l.as_i64().ok_or(Error::ExpectedNumber)?;
+                                let r = r.as_i64().ok_or(Error::ExpectedNumber)?;
+                                Ok(to_value(l & r))
+                            }
+                            _ => Err(Error::UnsupportedTypes(format!("{:?}", left), format!("{:?}", right))),
+                        }
+                    }
+                    Operator::BitOr(_) => {
+                        let left  = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        let right = exec_node(&node.get_last_child()?,  builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match (&left, &right) {
+                            (Value::Number(l), Value::Number(r)) => {
+                                let l = l.as_i64().ok_or(Error::ExpectedNumber)?;
+                                let r = r.as_i64().ok_or(Error::ExpectedNumber)?;
+                                Ok(to_value(l | r))
+                            }
+                            _ => Err(Error::UnsupportedTypes(format!("{:?}", left), format!("{:?}", right))),
+                        }
+                    }
+                    Operator::BitXor(_) => {
+                        let left  = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        let right = exec_node(&node.get_last_child()?,  builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match (&left, &right) {
+                            (Value::Number(l), Value::Number(r)) => {
+                                let l = l.as_i64().ok_or(Error::ExpectedNumber)?;
+                                let r = r.as_i64().ok_or(Error::ExpectedNumber)?;
+                                Ok(to_value(l ^ r))
+                            }
+                            _ => Err(Error::UnsupportedTypes(format!("{:?}", left), format!("{:?}", right))),
+                        }
+                    }
+                    Operator::BitNot => {
+                        let value = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match &value {
+                            Value::Number(n) => {
+                                let i = n.as_i64().ok_or(Error::ExpectedNumber)?;
+                                Ok(to_value(!i))
+                            }
+                            _ => Err(Error::ExpectedNumber),
+                        }
+                    }
+                    Operator::Shl(_) => {
+                        let left  = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        let right = exec_node(&node.get_last_child()?,  builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match (&left, &right) {
+                            (Value::Number(l), Value::Number(r)) => {
+                                let l = l.as_i64().ok_or(Error::ExpectedNumber)?;
+                                let r = r.as_u64().ok_or(Error::ExpectedNumber)?;
+                                if r >= 64 { return Err(Error::Custom("shift amount too large".into())); }
+                                Ok(to_value(l << r))
+                            }
+                            _ => Err(Error::UnsupportedTypes(format!("{:?}", left), format!("{:?}", right))),
+                        }
+                    }
+                    Operator::Shr(_) => {
+                        let left  = exec_node(&node.get_first_child()?, builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        let right = exec_node(&node.get_last_child()?,  builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match (&left, &right) {
+                            (Value::Number(l), Value::Number(r)) => {
+                                let l = l.as_i64().ok_or(Error::ExpectedNumber)?;
+                                let r = r.as_u64().ok_or(Error::ExpectedNumber)?;
+                                if r >= 64 { return Err(Error::Custom("shift amount too large".into())); }
+                                Ok(to_value(l >> r))
+                            }
+                            _ => Err(Error::UnsupportedTypes(format!("{:?}", left), format!("{:?}", right))),
+                        }
+                    }
+                    // `if(cond, then, else)` — short-circuit: only evaluates the matching branch.
+                    Operator::Function(ref ident) if ident == "if" => {
+                        if node.children.len() != 3 {
+                            return if node.children.len() < 3 {
+                                Err(Error::ArgumentsLess(3))
+                            } else {
+                                Err(Error::ArgumentsGreater(3))
+                            };
+                        }
+                        let cond = exec_node(&node.children[0], builtin, contexts, functions, Rc::clone(&const_functions))?;
+                        match cond {
+                            Value::Bool(true)  => exec_node(&node.children[1], builtin, contexts, functions, Rc::clone(&const_functions)),
+                            Value::Bool(false) => exec_node(&node.children[2], builtin, contexts, functions, Rc::clone(&const_functions)),
+                            _ => Err(Error::ExpectedBoolean(cond)),
+                        }
+                    }
                     Operator::Function(ref ident) => {
-                        let function_option = functions.get(ident).or_else(|| builtin.get(ident));
                         let mut values = Vec::new();
                         for node in &node.children {
                             values.push(exec_node(node, builtin, contexts, functions, Rc::clone(&const_functions))?);
                         }
 
-                        if let Some(fo) = function_option {
-                            let function = fo;
-                            node.check_function_args(function)?;
-                            (function.compiled)(values)
-                        } else if let Some(f) = const_functions.borrow().get(ident){
+                        if let Some(fo) = functions.get(ident) {
+                            node.check_function_args(fo)?;
+                            (fo.compiled)(values)
+                        } else if let Some(f) = const_functions.borrow().get(ident) {
                             (f.compiled)(values)
+                        } else if let Some(fo) = builtin.get(ident) {
+                            node.check_function_args(fo)?;
+                            (fo.compiled)(values)
                         } else {
                             Err(Error::FunctionNotExists(ident.to_owned()))
                         }

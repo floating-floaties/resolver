@@ -13,7 +13,11 @@ pub enum Operator {
     Sub(u8),
     Div(u8),
     Rem(u8),
+    /// Exponentiation (`**`)
+    Pow(u8),
     Not(u8),
+    /// Unary negation (`-x`)
+    UnaryMinus(u8),
     Eq(u8),
     Ne(u8),
     Gt(u8),
@@ -22,6 +26,24 @@ pub enum Operator {
     Le(u8),
     And(u8),
     Or(u8),
+    /// Null-coalescing (`??`): returns left if non-null, else right
+    NullCoalesce(u8),
+    /// Membership test (`in`): `val in array/object/string`
+    In(u8),
+    /// Negated membership (`not in`)
+    NotIn(u8),
+    /// Bitwise AND (`&`)
+    BitAnd(u8),
+    /// Bitwise OR (`|`)
+    BitOr(u8),
+    /// Bitwise XOR (`^`)
+    BitXor(u8),
+    /// Bitwise NOT (`~`, unary)
+    BitNot,
+    /// Left shift (`<<`)
+    Shl(u8),
+    /// Right shift (`>>`)
+    Shr(u8),
     Dot(u8),
     LeftParenthesis,
     RightParenthesis,
@@ -43,6 +65,8 @@ impl Operator {
 
     pub fn can_at_beginning(&self) -> bool {
         matches!(*self, Operator::Not(_) |
+            Operator::UnaryMinus(_) |
+            Operator::BitNot |
             Operator::Function(_) |
             Operator::LeftParenthesis)
     }
@@ -52,8 +76,11 @@ impl Operator {
             Operator::Add(_) | Operator::Sub(_) | Operator::Mul(_) | Operator::Div(_) |
             Operator::Eq(_) | Operator::Ne(_) | Operator::Gt(_) | Operator::Lt(_) |
             Operator::Ge(_) | Operator::Le(_) | Operator::And(_) | Operator::Or(_) |
-            Operator::Rem(_) => Some(2),
-            Operator::Not(_) => Some(1),
+            Operator::Rem(_) | Operator::Pow(_) | Operator::NullCoalesce(_) |
+            Operator::In(_) | Operator::NotIn(_) |
+            Operator::BitAnd(_) | Operator::BitOr(_) | Operator::BitXor(_) |
+            Operator::Shl(_) | Operator::Shr(_) => Some(2),
+            Operator::Not(_) | Operator::UnaryMinus(_) | Operator::BitNot => Some(1),
             Operator::Function(_) => None,
             _ => Some(0),
         }
@@ -64,8 +91,11 @@ impl Operator {
             Operator::Add(_) | Operator::Sub(_) | Operator::Mul(_) | Operator::Div(_) |
             Operator::Eq(_) | Operator::Ne(_) | Operator::Gt(_) | Operator::Lt(_) |
             Operator::Ge(_) | Operator::Le(_) | Operator::And(_) | Operator::Or(_) |
-            Operator::Rem(_) => Some(2),
-            Operator::Not(_) => Some(1),
+            Operator::Rem(_) | Operator::Pow(_) | Operator::NullCoalesce(_) |
+            Operator::In(_) | Operator::NotIn(_) |
+            Operator::BitAnd(_) | Operator::BitOr(_) | Operator::BitXor(_) |
+            Operator::Shl(_) | Operator::Shr(_) => Some(2),
+            Operator::Not(_) | Operator::UnaryMinus(_) | Operator::BitNot => Some(1),
             Operator::Function(_) => None,
             _ => Some(0),
         }
@@ -85,7 +115,17 @@ impl Operator {
             Operator::Le(priority) |
             Operator::And(priority) |
             Operator::Or(priority) |
-            Operator::Rem(priority) => priority,
+            Operator::Rem(priority) |
+            Operator::Pow(priority) |
+            Operator::UnaryMinus(priority) |
+            Operator::NullCoalesce(priority) |
+            Operator::In(priority) |
+            Operator::NotIn(priority) |
+            Operator::BitAnd(priority) |
+            Operator::BitOr(priority) |
+            Operator::BitXor(priority) |
+            Operator::Shl(priority) |
+            Operator::Shr(priority) => priority,
             Operator::Value(_) |
             Operator::Identifier(_) => 0,
             _ => 99,
@@ -120,14 +160,25 @@ impl Operator {
             Operator::Div(_) |
             Operator::Mul(_) |
             Operator::Rem(_) |
+            Operator::Pow(_) |
             Operator::Eq(_) |
             Operator::Ne(_) |
             Operator::Gt(_) |
             Operator::Lt(_) |
             Operator::And(_) |
             Operator::Or(_) |
+            Operator::NullCoalesce(_) |
+            Operator::In(_) |
+            Operator::NotIn(_) |
+            Operator::BitAnd(_) |
+            Operator::BitOr(_) |
+            Operator::BitXor(_) |
+            Operator::BitNot |
+            Operator::Shl(_) |
+            Operator::Shr(_) |
             Operator::Ge(_) |
             Operator::Not(_) |
+            Operator::UnaryMinus(_) |
             Operator::Dot(_) |
             Operator::LeftSquareBracket(_) |
             Operator::Le(_))
@@ -172,8 +223,18 @@ impl FromStr for Operator {
             "+" => Ok(Operator::Add(8)),
             "-" => Ok(Operator::Sub(8)),
             "*" => Ok(Operator::Mul(10)),
+            "**" => Ok(Operator::Pow(12)),
             "/" => Ok(Operator::Div(10)),
             "%" => Ok(Operator::Rem(10)),
+            "??" => Ok(Operator::NullCoalesce(1)),
+            "in" => Ok(Operator::In(6)),
+            "not in" => Ok(Operator::NotIn(6)),
+            "&" => Ok(Operator::BitAnd(7)),
+            "|" => Ok(Operator::BitOr(3)),
+            "^" => Ok(Operator::BitXor(5)),
+            "~" => Ok(Operator::BitNot),
+            "<<" => Ok(Operator::Shl(9)),
+            ">>" => Ok(Operator::Shr(9)),
             "(" => Ok(Operator::LeftParenthesis),
             ")" => Ok(Operator::RightParenthesis),
             "[" => Ok(Operator::LeftSquareBracket(100)),
