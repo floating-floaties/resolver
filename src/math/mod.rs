@@ -15,8 +15,6 @@ pub trait Math {
     fn lt(&self, value: &Value) -> Result<Value, Error>;
     fn ge(&self, value: &Value) -> Result<Value, Error>;
     fn le(&self, value: &Value) -> Result<Value, Error>;
-    fn and(&self, value: &Value) -> Result<Value, Error>;
-    fn or(&self, value: &Value) -> Result<Value, Error>;
 }
 
 impl Math for Value {
@@ -156,21 +154,6 @@ impl Math for Value {
         }
     }
 
-    fn and(&self, value: &Value) -> Result<Value, Error> {
-        if self.is_boolean() && value.is_boolean() {
-            Ok(to_value(self.get_boolean() && value.get_boolean()))
-        } else {
-            Err(Error::UnsupportedTypes(self.format(), value.format()))
-        }
-    }
-
-    fn or(&self, value: &Value) -> Result<Value, Error> {
-        if self.is_boolean() && value.is_boolean() {
-            Ok(to_value(self.get_boolean() || value.get_boolean()))
-        } else {
-            Err(Error::UnsupportedTypes(self.format(), value.format()))
-        }
-    }
 }
 
 
@@ -180,7 +163,6 @@ trait Type {
     fn get_str(&self) -> &str;
     fn get_u64(&self) -> u64;
     fn get_i64(&self) -> i64;
-    fn get_boolean(&self) -> bool;
     fn format(&self) -> String;
 }
 
@@ -206,10 +188,6 @@ impl Type for Value {
 
     fn get_i64(&self) -> i64 {
         self.as_i64().unwrap()
-    }
-
-    fn get_boolean(&self) -> bool {
-        self.as_bool().unwrap()
     }
 
     fn format(&self) -> String {
